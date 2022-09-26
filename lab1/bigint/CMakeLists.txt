@@ -1,0 +1,1 @@
+add_library(bigint_ STATIC bigint_vec.cpp bigint_vec.h)

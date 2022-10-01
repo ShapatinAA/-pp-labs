@@ -10,9 +10,16 @@ BigInt::BigInt() :
 		std::cout << "error in memory allocation";
 		abort();
 	}
-	elem_ = 0;
+	elem_[0] = 0;
 }
 
+//short& BigInt::operator[](int i) {
+//	return elem_[i];
+//}
+//
+//const short& BigInt::operator[](int i) const {
+//	return elem_[i];
+//}
 
 BigInt::BigInt(int size) :
 	elem_(new short[size]),
@@ -22,19 +29,21 @@ BigInt::BigInt(int size) :
 		std::cout << "error in memory allocation";
 		abort();
 	}
-		for (int i = 0; i < size_; i++) {
-			elem_[i] = 0;
-		}
+	for (int i = 0; i < size_; i++) {
+		elem_[i] = 0;
+	}
 }
 
-BigInt::BigInt(std::string str_) {
+BigInt::BigInt(std::string str_) :
+	elem_(new short[str_.size()]),
+	sign_(0),
+	size_(str_.size())
+{
 	int str_size = (int)str_.size();
 	if (!str_size) {
 		std::cout << "invalid_argument";
 		abort();
 	}
-	short* elem_(new short[str_size]);
-	sign_ = 0;
 	size_ = str_size;
 	str_size--;
 	while (str_size + 1) {
@@ -44,14 +53,24 @@ BigInt::BigInt(std::string str_) {
 		}
 		else {
 			if (str_size == 0 && size_ > 1) {
+				BigInt new_numb(size_ - 1);
 				switch (str_[str_size])
 				{
 				case '-':
-					sign_ = 1;
 					size_--;
+					for (int i = size_ - 1; i >= 0; i--) {
+						new_numb.elem_[i] = elem_[i + 1];
+					}
+					*this = new_numb;
+					sign_ = 1;
 					break;
 				case '+':
 					size_--;
+					for (int i = size_ - 1; i >= 0; i--) {
+						new_numb.elem_[i] = elem_[i + 1];
+					}
+					*this = new_numb;
+					sign_ = 0;
 					break;
 				default:
 					std::cout << "invalid_argument";
@@ -63,6 +82,11 @@ BigInt::BigInt(std::string str_) {
 				abort();
 			}
 		}
+	}
+	delete_leading_zeroes(*this);
+	if (str_ == "-0") {
+		BigInt new_numb("0");
+		*this = new_numb;
 	}
 }
 
@@ -86,22 +110,62 @@ BigInt::~BigInt() {
 BigInt& BigInt::operator=(const BigInt& numb) {
 	if (numb.elem_ == elem_) return (*this);
 	delete[] elem_;
-	short* elem = new short[numb.size_];
-	if (elem_ == nullptr) {
+	short* res_elem = new short[numb.size_];
+	if (res_elem == nullptr) {
 		std::cout << "error in memory allocation";
 		abort();
 	}
-	for (int i = size_; i > 0; i--) {
-		elem_[i] = numb.elem_[i];
+	for (int i = numb.size_ - 1; i >= 0; i--) {
+		res_elem[i] = numb.elem_[i];
+	}
+	elem_ = new short[numb.size_];
+	for (int i = numb.size_ - 1; i >= 0; i--) {
+		elem_[i] = res_elem[i];
 	}
 	size_ = numb.size_;
 	sign_ = numb.sign_;
 	return(*this);
 }
 
+void BigInt::delete_leading_zeroes(BigInt& numb) {
+	int i = 0;
+	bool allsign = numb.sign_;
+	while (numb.elem_[i] == 0 && i < numb.size_) i++;
+	if (i == numb.size_) {
+		BigInt new_numb(1);
+		numb = new_numb;
+		numb.sign_ = allsign;
+		return;
+	}
+	BigInt new_numb(numb.size_ - i);
+	for (int j = 0; j < new_numb.size_; j++) {
+		new_numb.elem_[j] = numb.elem_[i];
+		i++;
+	}
+	numb = new_numb;
+	numb.sign_ = allsign;
+}
+
+BigInt BigInt::get_log2(const BigInt& numb) {
+	BigInt new_numb("1");
+	BigInt i("0");
+	while (new_numb < numb) {
+		new_numb *= 2;
+		i++;
+	}
+	if (new_numb == numb) {
+		return i;
+	}
+	else return (--i);
+}
+
 BigInt BigInt::operator~() const {
+	if (size_ == 1 && sign_ && elem_[0] == (1)) {
+		BigInt new_numb("0");
+		return new_numb;
+	}
 	BigInt new_numb(size_);
-	new_numb = (*this);
+	new_numb = *this;
 	new_numb++;
 	new_numb.sign_ = !sign_;
 	return new_numb;
@@ -125,18 +189,25 @@ BigInt& BigInt::operator++() {
 				}
 				new_numb.elem_[0] = 1;
 				*this = new_numb;
+				delete_leading_zeroes(*this);
 				return *this;
 			}
 			else {
-				elem_[curr_pos]++;
+				delete_leading_zeroes(*this);
 				return *this;
 			}
 		}
 		else {
+			delete_leading_zeroes(*this);
 			return *this;
 		}
 	}
 	else {
+		if (size_ == 1 && elem_[0] == 1) {
+			BigInt new_numb("0");
+			*this = new_numb;
+			return *this;
+		}
 		int curr_pos = size_-1;
 		elem_[curr_pos]--;
 		while (curr_pos && elem_[curr_pos] < 0) {
@@ -146,17 +217,12 @@ BigInt& BigInt::operator++() {
 		}
 		if (curr_pos == 0) {
 			if (elem_[curr_pos] < 0) {
-				BigInt new_numb("1");
+				BigInt new_numb("-1");
 				*this = new_numb;
 				return *this;
 			}
 			else {
 				if (elem_[curr_pos] == 0) {
-					BigInt new_numb(size_ - 1);
-					for (curr_pos = size_ - 2; curr_pos >= 0; curr_pos--) {
-						new_numb.elem_[curr_pos] = elem_[curr_pos + 1];
-					}
-					*this = new_numb;
 					return *this;
 				}
 				else return *this;
@@ -202,6 +268,11 @@ BigInt& BigInt::operator--() {
 		}
 	}
 	else {
+		if (size_ == 1 && elem_[0] == 1) {
+			BigInt new_numb("0");
+			*this = new_numb;
+			return *this;
+		}
 		int curr_pos = size_ - 1;
 		elem_[curr_pos]--;
 		while (curr_pos && elem_[curr_pos] < 0) {
@@ -217,11 +288,7 @@ BigInt& BigInt::operator--() {
 			}
 			else {
 				if (elem_[curr_pos] == 0) {
-					BigInt new_numb(size_ - 1);
-					for (curr_pos = size_ - 2; curr_pos >= 0; curr_pos--) {
-						new_numb.elem_[curr_pos] = elem_[curr_pos + 1];
-					}
-					*this = new_numb;
+					delete_leading_zeroes(*this);
 					return *this;
 				}
 				else return *this;
@@ -238,15 +305,20 @@ const BigInt BigInt::operator--(int) {
 }
 
 BigInt& BigInt::operator+=(const BigInt& numb2) {
+	BigInt zero_numb("0");
+	if (*this == zero_numb) {
+		*this = numb2;
+		return *this;
+	}
+	else if (numb2 == zero_numb) return *this;
 	if (!(sign_ ^ numb2.sign_)) {
 		if (size_ > numb2.size_) {
 			int i = numb2.size_ - 1;
 			int j = size_ - 1;
-			short integ = 0;
 			while (i >= 0) {
-				elem_[j] = (elem_[j] + numb2.elem_[i]) % 10;
-				integ = (elem_[j] + numb2.elem_[i]) / 10;
-				elem_[j - 1] += integ;
+				elem_[j] += numb2.elem_[i];
+				elem_[j - 1] += elem_[j] / 10;
+				elem_[j] %= 10;
 				i--;
 				j--;
 			}
@@ -269,18 +341,18 @@ BigInt& BigInt::operator+=(const BigInt& numb2) {
 		else {
 			int i = numb2.size_ - 1;
 			if (size_ < numb2.size_) {
-				int j = size_ - 1;
-				BigInt new_numb(numb2.size);
-				for (; j >= 0; j--) new_numb.elem_[j] = elem_[j];
+				BigInt new_numb(numb2);
+				new_numb += *this;
 				*this = new_numb;
 			}
-			short integ = 0;
 			while (i > 0) {
-				elem_[i] = (elem_[i] + numb2.elem_[i]) % 10;
-				integ = (elem_[i] + numb2.elem_[i]) / 10;
-				elem_[i - 1] += integ;
+				elem_[i] += numb2.elem_[i];
+				elem_[i - 1] += (elem_[i] / 10);
+				elem_[i] %= 10;
 				i--;
 			}
+
+			elem_[i] += numb2.elem_[i];
 			if (i == 0 && elem_[i] > 9) {
 				elem_[i] %= 10;
 				BigInt new_numb(size_ + 1);
@@ -293,45 +365,50 @@ BigInt& BigInt::operator+=(const BigInt& numb2) {
 			return *this;
 		}
 	}
-	else *this -= numb2;
+	else {
+		if (sign_ == 0) *this -= (-numb2);
+		else {
+			sign_ = !sign_;
+			*this -= numb2;
+			if (*this != zero_numb) sign_ = !sign_;
+		}
+		return *this;
+	}
 }
 
 BigInt& BigInt::operator*=(const BigInt& numb2) {
 	bool end_sign = sign_ ^ numb2.sign_;
-	BigInt new_numb(size_ + numb2.size_ - 1);
+	if ((size_ == 1 && elem_[0] == 0) || (numb2.size_ == 1 && numb2.elem_[0] == 0)) {
+		BigInt new_numb("0");
+		*this = new_numb;
+		return *this;
+	}
+	BigInt new_numb(size_ + numb2.size_);
 	if (size_ > numb2.size_) {
-		for (int i = 0; i < numb2.size_; i--) {
+		for (int i = 0; i < numb2.size_; i++) {
 			for (int j = size_-1; j >= 0; j--) {
-				new_numb.elem_[j + i] = elem_[j] * numb2.elem_[numb2.size_ - 1 - i];
-				new_numb.elem_[j + i + 1] += (new_numb.elem_[j + i] / 10);
-				new_numb.elem_[j + i] %= 10;
+				new_numb.elem_[j + numb2.size_ - i] += elem_[j] * numb2.elem_[numb2.size_ - 1 - i];
+				new_numb.elem_[j + numb2.size_ - i - 1] += (new_numb.elem_[j + numb2.size_ - i] / 10);
+				new_numb.elem_[j + numb2.size_ - i] %= 10;
 			}
 		}
 		if (new_numb.elem_[0] == 0) {
-			BigInt new_numb2(new_numb.size_ - 1);
-			for (int i = new_numb.size_ - 1; i > 0; i--) {
-				new_numb2.elem_[i] = new_numb.elem_[i];
-			}
-			*this = new_numb2;
+			delete_leading_zeroes(new_numb);
 		}
 		*this = new_numb;
 		sign_ = end_sign;
 		return *this;
 	}
 	else {
-		for (int i = 0; i < size_; i--) {
+		for (int i = 0; i < size_; i++) {
 			for (int j = numb2.size_ - 1; j >= 0; j--) {
-				new_numb.elem_[j + i] = numb2.elem_[j] * elem_[size_ - 1 - i];
-				new_numb.elem_[j + i + 1] += (new_numb.elem_[j + i] / 10);
-				new_numb.elem_[j + i] %= 10;
+				new_numb.elem_[j + size_ - i] += numb2.elem_[j] * elem_[size_ - 1 - i];
+				new_numb.elem_[j + size_ - i - 1] += (new_numb.elem_[j + size_ - i] / 10);
+				new_numb.elem_[j + size_ - i] %= 10;
 			}
 		}
 		if (new_numb.elem_[0] == 0) {
-			BigInt new_numb2(new_numb.size_ - 1);
-			for (int i = new_numb.size_ - 1; i > 0; i--) {
-				new_numb2.elem_[i] = new_numb.elem_[i];
-			}
-			*this = new_numb2;
+			delete_leading_zeroes(new_numb);
 		}
 		*this = new_numb;
 		sign_ = end_sign;
@@ -339,5 +416,470 @@ BigInt& BigInt::operator*=(const BigInt& numb2) {
 	}
 }
 
+BigInt& BigInt::operator*=(const int& numb2) {
+	std::string str_ = std::to_string(numb2);
+	BigInt new_numb(str_);
+	*this *= new_numb;
+	return *this;
+}
 
+BigInt& BigInt::operator+=(const int& numb2) {
+	std::string str_ = std::to_string(numb2);
+	BigInt new_numb(str_);
+	*this += new_numb;
+	return *this;
+}
 
+BigInt& BigInt::operator-=(const int& numb2) {
+	std::string str_ = std::to_string(numb2);
+	BigInt new_numb(str_);
+	*this -= new_numb;
+	return *this;
+}
+
+BigInt& BigInt::operator/=(const int& numb2) {
+	std::string str_ = std::to_string(numb2);
+	BigInt new_numb(str_);
+	*this /= new_numb;
+	return *this;
+}
+
+BigInt& BigInt::operator%=(const int& numb2) {
+	std::string str_ = std::to_string(numb2);
+	BigInt new_numb(str_);
+	*this %= new_numb;
+	return *this;
+}
+
+BigInt& BigInt::operator-=(const BigInt& numb2) {
+	if (sign_ ^ numb2.sign_) {
+		*this += (-numb2);
+		return *this;
+	}
+	else {
+		if (*this == -numb2) {
+			BigInt new_numb("0");
+			*this = new_numb;
+			return *this;
+		}
+		if (size_ > numb2.size_) {
+			for (int i = 0; i < numb2.size_; i++) {
+				elem_[size_ - 1 - i] -= numb2.elem_[numb2.size_ - 1 - i];
+				if (elem_[size_ - 1 - i] < 0) {
+					elem_[size_ - 2 - i]--;
+					elem_[size_ - 1 - i] += 10;
+				}
+			}
+			delete_leading_zeroes(*this);
+			return *this;
+		}
+		else {
+			if (numb2.size_ > size_) {
+				BigInt new_numb(numb2);
+				for (int i = 0; i < size_; i++) {
+					new_numb.elem_[new_numb.size_ - 1 - i] -= elem_[size_ - 1 - i];
+					if (new_numb.elem_[size_ - 1 - i] < 0) {
+						new_numb.elem_[size_ - 2 - i]--;
+						new_numb.elem_[size_ - 1 - i] += 10;
+					}
+				}
+				*this = new_numb;
+				sign_ = 1;
+				delete_leading_zeroes(*this);
+				return *this;
+			}
+			else {
+				if (sign_) {
+					if (*this < numb2) {
+						for (int i = 0; i < numb2.size_; i++) {
+							elem_[size_ - 1 - i] -= numb2.elem_[numb2.size_ - 1 - i];
+							if (elem_[size_ - 1 - i] < 0) {
+								elem_[size_ - 2 - i]--;
+								elem_[size_ - 1 - i] += 10;
+							}
+						}
+						delete_leading_zeroes(*this);
+						return *this;
+					}
+					else {
+						BigInt new_numb(numb2);
+						for (int i = 0; i < size_; i++) {
+							new_numb.elem_[new_numb.size_ - 1 - i] -= elem_[size_ - 1 - i];
+							if (new_numb.elem_[size_ - 1 - i] < 0) {
+								new_numb.elem_[size_ - 2 - i]--;
+								new_numb.elem_[size_ - 1 - i] += 10;
+							}
+						}
+						*this = new_numb;
+						sign_ = 0;
+						delete_leading_zeroes(*this);
+						return *this;
+					}
+				}
+				else {
+					if (*this > numb2) {
+						for (int i = 0; i < numb2.size_; i++) {
+							elem_[size_ - 1 - i] -= numb2.elem_[numb2.size_ - 1 - i];
+							if (elem_[size_ - 1 - i] < 0) {
+								elem_[size_ - 2 - i]--;
+								elem_[size_ - 1 - i] += 10;
+							}
+						}
+						delete_leading_zeroes(*this);
+						return *this;
+					}
+					else {
+						BigInt new_numb(numb2);
+						for (int i = 0; i < size_; i++) {
+							new_numb.elem_[new_numb.size_ - 1 - i] -= elem_[size_ - 1 - i];
+							if (new_numb.elem_[size_ - 1 - i] < 0) {
+								new_numb.elem_[size_ - 2 - i]--;
+								new_numb.elem_[size_ - 1 - i] += 10;
+							}
+						}
+						*this = new_numb;
+						sign_ = 1;
+						delete_leading_zeroes(*this);
+						return *this;
+					}
+				}
+			}
+		}
+	}
+}
+bool BigInt::operator==(const BigInt& numb2) const { 
+	if (size_ == numb2.size_ && sign_ == numb2.sign_) {
+		for (int i = size_ - 1; i >= 0; i--) {
+			if (elem_[i] != numb2.elem_[i]) return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+BigInt& BigInt::operator/=(const BigInt& numb2) {
+	BigInt zero_numb("0");
+	if (numb2 == zero_numb) {
+		std::cout << "division by zero prohibited";
+		return *this;
+	}
+	if (numb2 > *this) {
+		*this = zero_numb;
+		return *this;	
+	}
+	++zero_numb;
+	if (numb2 == zero_numb) {
+		return *this;
+	}
+	zero_numb.sign_ = 1;
+	if (numb2 == zero_numb) {
+		sign_ = !sign_;
+		return *this;
+	}
+	bool allsign = sign_ ^ numb2.sign_;
+	sign_ = numb2.sign_;
+	BigInt tmp;
+	BigInt result_numb;
+	int i = 0;
+	while (i<size_) {
+		for (; tmp < numb2 && i < size_; i++) {
+			result_numb *= 10;
+			tmp *= 10;
+			tmp.elem_[tmp.size_-1] = elem_[i];
+		}
+		BigInt rez_("1");
+		while (tmp > (numb2 * rez_)) {
+			rez_++;
+		}
+		if (tmp != (numb2 * rez_)) {
+			rez_--;
+		}
+		result_numb += rez_;
+		tmp -= numb2 * rez_;
+	}
+	*this = result_numb;
+	sign_ = allsign;
+	return *this;
+}
+
+BigInt& BigInt::operator^=(const BigInt& numb) {
+	if (*this == numb) {
+		BigInt zero_numb("0");
+		*this = zero_numb;
+		return *this;
+	}
+	BigInt result_numb(1);
+	BigInt numb2(numb);
+	bool allsign = sign_ ^ numb.sign_;
+	sign_ = 0;
+	numb2.sign_ = 0;
+	BigInt power_of_2("1");
+	BigInt tmp("0");
+	BigInt log2_of_this = get_log2(*this);
+	if (*this > numb) {
+		for (BigInt i("0"); i <= log2_of_this; i++) {
+			tmp = (*this / power_of_2) + (numb2 / power_of_2);
+			if (tmp.elem_[tmp.size_ - 1] % 2) result_numb += power_of_2;
+			power_of_2 *= 2;
+		}
+	}
+	else {
+		numb2 ^= *this;
+		*this = numb2;
+		sign_ = allsign;
+		return *this;
+	}
+	result_numb.sign_ = allsign;
+	*this = result_numb;
+	return *this;
+}
+
+BigInt& BigInt::operator%=(const BigInt& numb2) {
+	if (*this == numb2) {
+		BigInt zero_numb("0");
+		*this = zero_numb;
+		return *this;
+	}
+	BigInt zero_numb("0");
+	if (numb2 == zero_numb) {
+	std::cout << "division by zero prohibited";
+	return *this;
+	}
+	if (numb2.size_ > size_) {
+		*this = zero_numb;
+		return *this;
+	}
+	if (numb2.size_ == 1) {
+		switch (numb2.elem_[0]) {
+		case (1): 
+			*this = zero_numb;
+			return *this;
+		case (2):
+			if (!elem_[size_ - 1])	*this = zero_numb;
+			else *this = (++zero_numb);
+			return *this;
+		}
+	}
+	*this -= ((*this / numb2) * numb2);
+	return *this;
+}
+
+BigInt& BigInt::operator&=(const BigInt&numb) {
+	if (*this == numb) {
+		return *this;
+	}
+	BigInt result_numb(1);
+	BigInt numb2(numb);
+	bool allsign = sign_ & numb.sign_;
+	sign_ = 0;
+	numb2.sign_ = 0;
+	BigInt power_of_2("1");
+	BigInt tmp1("0");
+	BigInt tmp2("0");
+	BigInt log2_of_this = get_log2(*this);
+	if (*this > numb) {
+		for (BigInt i("0"); i <= log2_of_this; i++) {
+			tmp1 = (*this / power_of_2);
+			tmp2 = (numb / power_of_2);
+			if ((tmp1.elem_[tmp1.size_ - 1] % 2) && (tmp2.elem_[tmp2.size_ - 1] % 2)) result_numb += power_of_2;
+			power_of_2 *= 2;
+		}
+	}
+	else {
+		numb2 &= *this;
+		*this = numb2;
+		sign_ = allsign;
+		return *this;
+	}
+	result_numb.sign_ = allsign;
+	*this = result_numb;
+	return *this;
+}
+
+BigInt& BigInt::operator|=(const BigInt& numb) {
+	BigInt result_numb(1);
+	BigInt numb2(numb);
+	bool allsign = sign_ | numb.sign_;
+	sign_ = 0;
+	numb2.sign_ = 0;
+	BigInt power_of_2("1");
+	BigInt tmp1("0");
+	BigInt tmp2("0");
+	BigInt log2_of_this = get_log2(*this);
+	if (*this > numb) {
+		for (BigInt i("0"); i <= log2_of_this; i++) {
+			tmp1 = (*this / power_of_2);
+			tmp2 = (numb / power_of_2);
+			if (((tmp1.elem_[tmp1.size_ - 1] % 2) 
+				|| 
+				(tmp2.elem_[tmp2.size_ - 1] % 2) 
+				|| 
+				((tmp1.elem_[tmp1.size_ - 1] % 2) * (tmp2.elem_[tmp2.size_ - 1] % 2)))
+				% 2
+				) result_numb += power_of_2;
+			power_of_2 *= 2;
+		}
+	}
+	else {
+		numb2 |= *this;
+		*this = numb2;
+		sign_ = allsign;
+		return *this;
+	}
+	result_numb.sign_ = allsign;
+	*this = result_numb;
+	return *this;
+}
+
+BigInt BigInt::operator+() const {
+	return *this;
+}
+
+BigInt BigInt::operator-() const {
+	BigInt new_numb = *this;
+	new_numb.sign_ = !new_numb.sign_;
+	return *this;
+}
+
+bool BigInt::operator!=(const BigInt& numb) const {
+	if (!((*this) == numb)) return true;
+	else return false;
+}
+
+bool BigInt::operator<(const BigInt& numb) const {
+	switch (sign_) {
+	case (0): {
+		switch (numb.sign_) {
+		case (0): {
+			switch (size_ < numb.size_) {
+			case (1): return true;
+			case (0): {
+				switch (size_ == numb.size_) {
+				case (0): return false;
+				case (1): {
+					for (int i = 0; i < size_; i++) {
+						if (elem_[i] > numb.elem_[i]) return false;
+						else if (elem_[i] < numb.elem_[i]) return true;
+					}
+					return false;
+				}
+				}
+			}
+			}
+		case (1): return false;
+		}
+		}
+	}
+	case (1): {
+		switch (numb.sign_) {
+		case (0): return true;
+		case (1): {
+			switch (size_ < numb.size_) {
+			case (1): return false;
+			case (0): {
+				switch (size_ == numb.size_) {
+				case (0): return true;
+				case (1): {
+					for (int i = 0; i < size_; i++) {
+						if (elem_[i] > numb.elem_[i]) return true;
+						else if (elem_[i] < numb.elem_[i]) return false;
+					}
+					return false;
+				}
+				}
+			}
+			}
+		}
+		}
+	}
+	}
+}
+
+bool BigInt::operator>(const BigInt& numb) const { 
+	if (!(*this < numb) && !(*this == numb)) return true;
+	else return false;
+}
+
+bool BigInt::operator<=(const BigInt& numb) const {
+	if (!(*this > numb)) return true;
+	else return false;
+}
+
+bool BigInt::operator>=(const BigInt& numb) const {
+	if (!(*this < numb)) return true;
+	else return false;
+}
+
+BigInt::operator int() const {
+	BigInt new_numb("1");
+	for (int i = 1; i < 8 * sizeof(int); i++) {
+		new_numb *= 2;
+	}
+	BigInt new_numb2 = *this;
+	new_numb2 %= new_numb;
+	return new_numb2;
+}
+
+BigInt::operator BigInt() const {
+	std::string str_ = std::to_string(*this);
+	BigInt new_numb(str_);
+	return new_numb;
+}
+
+BigInt::operator std::string() const {
+	std::string output_str;
+	for (int i = 0; i < size_; i++) {
+		output_str += (char)(elem_[i] + '0');
+	}
+	return output_str;
+}
+
+size_t BigInt::size() const {
+	return (sizeof(short) * size_ + sizeof(bool) + sizeof(int));
+}
+
+BigInt operator*(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	new_numb *= numb2;
+	return new_numb;
+}
+
+BigInt operator+(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	return new_numb += numb2;
+}
+
+BigInt operator/(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	return new_numb /= numb2;
+}
+
+BigInt operator-(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	return new_numb -= numb2;
+}
+
+BigInt operator^(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	return new_numb ^= numb2;
+}
+
+BigInt operator%(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	return new_numb %= numb2;
+}
+
+BigInt operator&(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	return new_numb &= numb2;
+}
+
+BigInt operator|(const BigInt& numb1, const BigInt& numb2) {
+	BigInt new_numb = numb1;
+	return new_numb |= numb2;
+}
+
+std::ostream& operator<<(std::ostream& o, const BigInt& i) {
+	o << (std::string)(i);
+	return o;
+}

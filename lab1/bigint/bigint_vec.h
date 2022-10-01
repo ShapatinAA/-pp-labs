@@ -20,14 +20,19 @@ public:
     BigInt(const BigInt&);
     ~BigInt();
 
+    //short& operator[](int);
+    //const short& operator[](int) const;
+
     BigInt& operator=(const BigInt&);  //возможно присваивание самому себе!
 
     BigInt operator~() const;
 
+    BigInt get_log2(const BigInt&);
+
     BigInt& operator++();
-    const BigInt operator++(int) const;
+    const BigInt operator++(int);
     BigInt& operator--();
-    const BigInt operator--(int) const;
+    const BigInt operator--(int);
 
     BigInt& operator+=(const BigInt&);
     BigInt& operator*=(const BigInt&);
@@ -37,6 +42,12 @@ public:
     BigInt& operator%=(const BigInt&);
     BigInt& operator&=(const BigInt&);
     BigInt& operator|=(const BigInt&);
+
+    BigInt& BigInt::operator*=(const int& numb2);
+    BigInt& BigInt::operator+=(const int& numb2);
+    BigInt& BigInt::operator-=(const int& numb2);
+    BigInt& BigInt::operator/=(const int& numb2);
+    BigInt& BigInt::operator%=(const int& numb2);
 
     BigInt operator+() const;  // unary +
     BigInt operator-() const;  // unary -
@@ -50,8 +61,11 @@ public:
 
     operator int() const;
     operator std::string() const;
+    operator BigInt() const;
 
     size_t size() const;  // size in bytes
+
+    void delete_leading_zeroes(BigInt&);
 };
 
 BigInt operator+(const BigInt&, const BigInt&);

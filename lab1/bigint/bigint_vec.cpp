@@ -63,6 +63,7 @@ BigInt::BigInt(std::string str_) :
 					}
 					*this = new_numb;
 					sign_ = 1;
+					str_size--;
 					break;
 				case '+':
 					size_--;
@@ -71,6 +72,7 @@ BigInt::BigInt(std::string str_) :
 					}
 					*this = new_numb;
 					sign_ = 0;
+					str_size--;
 					break;
 				default:
 					std::cout << "invalid_argument";

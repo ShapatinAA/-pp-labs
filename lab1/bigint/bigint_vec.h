@@ -1,7 +1,6 @@
 #ifndef BIGINT_BIGINT_H
 #define BIGINT_BIGINT_H
 #endif
-#include <malloc.h>
 #include <string>
 
 class BigInt {
@@ -25,10 +24,9 @@ public:
 
     BigInt& operator=(const BigInt&);  //возможно присваивание самому себе!
 
-    BigInt operator~() const;
-
     BigInt get_log2(const BigInt&);
 
+    BigInt operator~() const;
     BigInt& operator++();
     const BigInt operator++(int);
     BigInt& operator--();

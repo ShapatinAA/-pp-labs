@@ -132,20 +132,22 @@ BigInt& BigInt::operator=(const BigInt& numb) {
 void BigInt::delete_leading_zeroes(BigInt& numb) {
 	int i = 0;
 	bool allsign = numb.sign_;
-	while (numb.elem_[i] == 0 && i < numb.size_) i++;
+	while (i < numb.size_ && numb.elem_[i] == 0) i++;
 	if (i == numb.size_) {
 		BigInt new_numb(1);
 		numb = new_numb;
 		numb.sign_ = allsign;
 		return;
 	}
-	BigInt new_numb(numb.size_ - i);
-	for (int j = 0; j < new_numb.size_; j++) {
-		new_numb.elem_[j] = numb.elem_[i];
-		i++;
+	if (i != 0) {
+		BigInt new_numb(numb.size_ - i);
+		for (int j = 0; j < new_numb.size_; j++) {
+			new_numb.elem_[j] = numb.elem_[i];
+			i++;
+		}
+		numb = new_numb;
+		numb.sign_ = allsign;
 	}
-	numb = new_numb;
-	numb.sign_ = allsign;
 }
 
 BigInt BigInt::get_log2(const BigInt& numb) {
@@ -346,6 +348,7 @@ BigInt& BigInt::operator+=(const BigInt& numb2) {
 				BigInt new_numb(numb2);
 				new_numb += *this;
 				*this = new_numb;
+				return *this;
 			}
 			while (i > 0) {
 				elem_[i] += numb2.elem_[i];
@@ -459,7 +462,7 @@ BigInt& BigInt::operator-=(const BigInt& numb2) {
 		return *this;
 	}
 	else {
-		if (*this == -numb2) {
+		if (*this == numb2) {
 			BigInt new_numb("0");
 			*this = new_numb;
 			return *this;
@@ -560,12 +563,16 @@ bool BigInt::operator==(const BigInt& numb2) const {
 }
 
 BigInt& BigInt::operator/=(const BigInt& numb2) {
+	BigInt copy_numb2(numb2);
+	bool allsign = sign_ ^ numb2.sign_;
+	sign_ = 0;
+	copy_numb2.sign_ = 0;
 	BigInt zero_numb("0");
 	if (numb2 == zero_numb) {
 		std::cout << "division by zero prohibited";
 		return *this;
 	}
-	if (numb2 > *this) {
+	if (copy_numb2 > *this) {
 		*this = zero_numb;
 		return *this;	
 	}
@@ -578,26 +585,24 @@ BigInt& BigInt::operator/=(const BigInt& numb2) {
 		sign_ = !sign_;
 		return *this;
 	}
-	bool allsign = sign_ ^ numb2.sign_;
-	sign_ = numb2.sign_;
 	BigInt tmp;
 	BigInt result_numb;
 	int i = 0;
 	while (i<size_) {
-		for (; tmp < numb2 && i < size_; i++) {
+		for (; tmp < copy_numb2 && i < size_; i++) {
 			result_numb *= 10;
 			tmp *= 10;
 			tmp.elem_[tmp.size_-1] = elem_[i];
 		}
 		BigInt rez_("1");
-		while (tmp > (numb2 * rez_)) {
+		while (tmp > (copy_numb2 * rez_)) {
 			rez_++;
 		}
-		if (tmp != (numb2 * rez_)) {
+		if (tmp != (copy_numb2 * rez_)) {
 			rez_--;
 		}
 		result_numb += rez_;
-		tmp -= numb2 * rez_;
+		tmp -= copy_numb2 * rez_;
 	}
 	*this = result_numb;
 	sign_ = allsign;
@@ -605,8 +610,8 @@ BigInt& BigInt::operator/=(const BigInt& numb2) {
 }
 
 BigInt& BigInt::operator^=(const BigInt& numb) {
+	BigInt zero_numb("0");
 	if (*this == numb) {
-		BigInt zero_numb("0");
 		*this = zero_numb;
 		return *this;
 	}
@@ -629,10 +634,18 @@ BigInt& BigInt::operator^=(const BigInt& numb) {
 		numb2 ^= *this;
 		*this = numb2;
 		sign_ = allsign;
+		if (size_ == 1 && elem_[0] == 0) {
+			*this = zero_numb;
+			return *this;
+		}
 		return *this;
 	}
 	result_numb.sign_ = allsign;
 	*this = result_numb;
+	if (size_ == 1 && elem_[0] == 0) {
+		*this = zero_numb;
+		return *this;
+	}
 	return *this;
 }
 
@@ -739,8 +752,12 @@ BigInt BigInt::operator+() const {
 
 BigInt BigInt::operator-() const {
 	BigInt new_numb = *this;
+	BigInt zero_numb("0");
+	if (new_numb == zero_numb) {
+		return new_numb;
+	}
 	new_numb.sign_ = !new_numb.sign_;
-	return *this;
+	return new_numb;
 }
 
 bool BigInt::operator!=(const BigInt& numb) const {
@@ -830,6 +847,10 @@ BigInt::operator BigInt() const {
 
 BigInt::operator std::string() const {
 	std::string output_str;
+	BigInt zero_numb("0");
+	if (*this < zero_numb) {
+		output_str += '-';
+	}
 	for (int i = 0; i < size_; i++) {
 		output_str += (char)(elem_[i] + '0');
 	}

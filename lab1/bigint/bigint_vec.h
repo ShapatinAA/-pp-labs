@@ -10,6 +10,8 @@ private:
     short* elem_;
     bool sign_;
     int size_;
+    BigInt(int bigint_size, bool flag);
+
 
 public:
 

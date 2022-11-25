@@ -17,21 +17,49 @@ arguments::arguments(int argc, char* argv[]):
 	configs(""),
 	matrix(""),
 	players(),
-	answers_sheet(nullptr)
+	answers_sheet()
 {
-	arguments_get_players(players, argc, argv);
+	players = arguments_get_players(players, argc, argv);
 	arguments_get_mode(&mode, argc, argv);
 	arguments_get_configs(&configs, argc, argv);
 	arguments_get_matrix(&matrix, argc, argv);
 	arguments_get_steps(&steps, argc, argv);
-	arguments_get_answers_sheet(answers_sheet, matrix);
+	answers_sheet = arguments_get_answers_sheet(answers_sheet, matrix);
+}
+
+arguments::arguments(const arguments& argument) :
+	mode(argument.mode),
+	steps(argument.steps),
+	configs(argument.configs),
+	matrix(argument.matrix),
+	players(),
+	answers_sheet()
+{
+	players = new std::string[3];
+	if (players == nullptr) {
+		std::cout << "\nerror in memorry allocation\n";
+		abort();
+	}
+	players[0] = argument.players[0];
+	players[1] = argument.players[1];
+	players[2] = argument.players[2];
+	
+	answers_sheet = new std::string[3];
+	if (answers_sheet == nullptr) {
+		std::cout << "\nerror in memorry allocation\n";
+		abort();
+	}
+	answers_sheet[0] = argument.answers_sheet[0];
+	answers_sheet[1] = argument.answers_sheet[1];
+	answers_sheet[2] = argument.answers_sheet[2];
 }
 
 arguments::~arguments() {
 	delete[] players;
+	delete[] answers_sheet;
 }
 
-void arguments::arguments_get_players(std::string* players, int argc, char* argv[]) {
+std::string* arguments::arguments_get_players(std::string* players, int argc, char* argv[]) {
 	int i;
 	for (i = 1; (i!=argc) && (argv[i][0] != '-'); i++) {}
 	i--;
@@ -47,6 +75,7 @@ void arguments::arguments_get_players(std::string* players, int argc, char* argv
 	for (i; i; i--) {
 		(players)[i-1] = argv[i];
 	}
+	return players;
 };
 
 void arguments::arguments_get_mode(std::string* mode, int argc, char* argv[]) {
@@ -78,6 +107,7 @@ void arguments::arguments_get_configs(std::string* config, int argc, char* argv[
 			break;
 		}
 	}
+	if ((*config).empty()) return;
 	std::ifstream if_exists;
 	if_exists.open(*config);
 	if (!if_exists) {
@@ -98,6 +128,7 @@ void arguments::arguments_get_matrix(std::string* matrix, int argc, char* argv[]
 			break;
 		}
 	}
+	if ((*matrix).empty()) return;
 	std::ifstream if_exists;
 	if_exists.open(*matrix);
 	if (!if_exists) {
@@ -122,7 +153,7 @@ void arguments::arguments_get_steps(int* steps, int argc, char* argv[]) {
 	}
 }
 
-void arguments::arguments_get_answers_sheet(std::string* answers_sheet, std::string matrix) {
+std::string* arguments::arguments_get_answers_sheet(std::string* answers_sheet, std::string matrix) {
 	answers_sheet = new std::string[3];
 	if (answers_sheet == nullptr) {
 		std::cout << "\nerror in memorry allocation\n";
@@ -137,6 +168,7 @@ void arguments::arguments_get_answers_sheet(std::string* answers_sheet, std::str
 	for (int i = 0; (getline(matrix_file, answers_sheet[i])) && (i < 3); i++);
 	matrix_file.close();
 	arguments_chech_if_sheet_okay(answers_sheet);
+	return answers_sheet;
 }
 
 void arguments::arguments_chech_if_sheet_okay(std::string* answers_sheet) {
@@ -162,13 +194,15 @@ void arguments::arguments_chech_if_sheet_okay(std::string* answers_sheet) {
 
 
 
-player::player(int number_of_the_player, arguments arguments_of_the_game): 
+player::player(std::string players_personality) :
 
 	personality(0),
-	next_move(false)
+	next_move(true)
 {
-	player_get_personality(&personality, arguments_of_the_game.players[number_of_the_player]);
+	player_get_personality(&personality, players_personality);
 }
+
+player::~player() {}
 
 void player::player_get_personality(int* personality_int, std::string personality_string) {
 	while (true) {
@@ -184,44 +218,53 @@ void player::player_get_personality(int* personality_int, std::string personalit
 			*personality_int = 3;
 			break;
 		}
-		if (!personality_string.compare("smart")) {
+		if (!personality_string.compare("unpredictable")) {
 			*personality_int = 4;
 			break;
 		}
-		if (!personality_string.compare("switcher")) {
+		if (!personality_string.compare("smart")) {
 			*personality_int = 5;
 			break;
 		}
+		*personality_int = 6;
+		break;
 	}
+
 }
 
-player::~player() {}
+void player::player_play_one_round(player* player1, player* player2, player* player3, arguments* arguments_of_the_game) {
 
-/*void player::choose(player player1) {		//узнаём модель поведения
-	switch (player1.personality) {
-	case (1): {	
-		switcher(player1);								//свитчер t-f-t
-		return;
+}
+
+void player::player_calculate_next_move(arguments arguments_of_the_game) {
+	switch (this->personality) {
+	case (1): {
+		player_calculate_next_move_switcher(this, arguments_of_the_game);								
+		break;
 	}
 	case (2): {
-		liar(player1);									//лгун f-f-f
-		return;
+		player_calculate_next_move_liar(this);
+		break;
 	}
 	case (3): {
-		naive(player1);									//правдивый t-t-t
-		return;
+		player_calculate_next_move_naive(this);
+		break;
 	}
 	case (4): {
-		unpredictable(player1);							//рандом w-t-f
-		return;
+		player_calculate_next_move_unpredictable(this);
+		break;
 	}
 	case (5): {
-		smart(player1);									//умный
-		return;
+		player_calculate_next_move_smart(this, arguments_of_the_game);
+		break;
+	}
+	case (6): {
+		player_calculate_next_move_side(this, arguments_of_the_game);
+		break;
 	}
 	default: {
 		std::cout << "\n There is something wrong with one of your players \n";
-		return;
+		abort();
 	}
 	}
-}*/
+}

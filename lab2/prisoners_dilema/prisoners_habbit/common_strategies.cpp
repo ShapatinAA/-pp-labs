@@ -1,4 +1,6 @@
 #include <iostream>
+#include <chrono>
+#include <thread>
 #include <string>
 #include <random>
 #include <time.h>
@@ -29,10 +31,11 @@ void player::player_calculate_next_move_liar(player* player_liar) {
 };
 
 void player::player_calculate_next_move_naive(player* player_naive) {
-	(*player_naive).next_move = 0;
+	(*player_naive).next_move = 1;
 };
 
 void player::player_calculate_next_move_unpredictable(player* player_unpredictable) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(67));
 	srand( (int)time(NULL) );
 	(*player_unpredictable).next_move = rand() % 2;
 };
@@ -45,24 +48,24 @@ void analyse_other_players(int*** sequences_of_players, int position_of_other_pl
 		if (arguments_of_the_game.answers_sheet[position_of_other_player][i] == '1') amount_of_true++; else amount_of_false++;
 		if (last_symbol != (bool)((arguments_of_the_game.answers_sheet[position_of_other_player][i] - '0'))) {
 			if (last_symbol == 1) {
-				sequences_of_players[position_of_other_player][last_symbol][amount_of_true]++;
+				sequences_of_players[position_of_other_player % 2][last_symbol][amount_of_true]++;
 				amount_of_true = 0;
 				last_symbol = 0;
 			}
 			else {
-				sequences_of_players[position_of_other_player][last_symbol][amount_of_false]++;
+				sequences_of_players[position_of_other_player % 2][last_symbol][amount_of_false]++;
 				amount_of_false = 0;
 				last_symbol = 1;
 			}
 		}
 	}
 	if (last_symbol == 1) {
-		sequences_of_players[position_of_other_player][last_symbol][amount_of_true]++;
+		sequences_of_players[position_of_other_player % 2][last_symbol][amount_of_true]++;
 		amount_of_true = 0;
 		last_symbol = 0;
 	}
 	else {
-		sequences_of_players[position_of_other_player][last_symbol][amount_of_false]++;
+		sequences_of_players[position_of_other_player % 2][last_symbol][amount_of_false]++;
 		amount_of_false = 0;
 		last_symbol = 1;
 	}
@@ -97,6 +100,11 @@ int get_likely_outcome_false(int*** sequences_of_players, int position_of_other_
 
 bool* get_likely_move_of_other_players(int*** sequences_of_players, arguments arguments_of_the_game) {
 	bool* likely_move_of_players = new bool[2];
+	if (arguments_of_the_game.answers_sheet[0].empty()) {
+		likely_move_of_players[0] = 1;
+		likely_move_of_players[1] = 1;
+		return likely_move_of_players;
+	}
 	int position_of_smart_player = 0;
 	while (true) {
 		if (arguments_of_the_game.players[position_of_smart_player] == "smart") break;
@@ -106,57 +114,57 @@ bool* get_likely_move_of_other_players(int*** sequences_of_players, arguments ar
 	analyse_other_players(sequences_of_players, (position_of_smart_player + 1) % 3, arguments_of_the_game);
 	analyse_other_players(sequences_of_players, (position_of_smart_player + 2) % 3, arguments_of_the_game);
 
-	if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3][arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3].size() - 1] == '1') {
-		int likely_amount_of_true_first = get_likely_outcome_true(sequences_of_players, (position_of_smart_player + 1) % 3, arguments_of_the_game);
+	if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2][arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2].size() - 1] == '1') {
+		int likely_amount_of_true_first = get_likely_outcome_true(sequences_of_players, (position_of_smart_player + 1) % 2, arguments_of_the_game);
 
 		if (likely_amount_of_true_first < 0) {
 			likely_move_of_players[0] = 1;
 		}
 		else {
-			int curr_pos1 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3].size() - 1;
-			for (curr_pos1; arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3][curr_pos1] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3][curr_pos1 - 1]; curr_pos1--);
-			if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3].size() - curr_pos1 == likely_amount_of_true_first) likely_move_of_players[0] = 0;
+			int curr_pos1 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2].size() - 1;
+			for (curr_pos1; curr_pos1 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2][curr_pos1] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2][curr_pos1 - 1]; curr_pos1--);
+			if (curr_pos1 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2].size() - curr_pos1 == likely_amount_of_true_first) likely_move_of_players[0] = 0;
 			else likely_move_of_players[0] = 1;
 		}
 
 	}
 	else {
-		int likely_amount_of_false_first = get_likely_outcome_false(sequences_of_players, (position_of_smart_player + 1) % 3, arguments_of_the_game);
+		int likely_amount_of_false_first = get_likely_outcome_false(sequences_of_players, (position_of_smart_player + 1) % 2, arguments_of_the_game);
 
 		if (likely_amount_of_false_first < 0) {
 			likely_move_of_players[0] = 0;
 		}
 		else {
-			int curr_pos1 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3].size() - 1;
-			for (curr_pos1; arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3][curr_pos1] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3][curr_pos1 - 1]; curr_pos1--);
-			if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 3].size() - curr_pos1 == likely_amount_of_false_first) likely_move_of_players[0] = 1;
+			int curr_pos1 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2].size() - 1;
+			for (curr_pos1; curr_pos1 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2][curr_pos1] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2][curr_pos1 - 1]; curr_pos1--);
+			if (curr_pos1 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 1) % 2].size() - curr_pos1 == likely_amount_of_false_first) likely_move_of_players[0] = 1;
 			else likely_move_of_players[0] = 0;
 		}
 	}
 
-	if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3][(arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3].size()) - 1] == '1') {
-		int likely_amount_of_true_second = get_likely_outcome_true(sequences_of_players, (position_of_smart_player + 2) % 3, arguments_of_the_game);
+	if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2][(arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2].size()) - 1] == '1') {
+		int likely_amount_of_true_second = get_likely_outcome_true(sequences_of_players, (position_of_smart_player + 2) % 2, arguments_of_the_game);
 
 		if (likely_amount_of_true_second < 0) {
 			likely_move_of_players[1] = 1;
 		}
 		else {
-			int curr_pos2 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3].size() - 1;
-			for (curr_pos2; arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3][curr_pos2] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3][curr_pos2 - 1]; curr_pos2--);
-			if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3].size() - curr_pos2 == likely_amount_of_true_second) likely_move_of_players[1] = 0;
+			int curr_pos2 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2].size() - 1;
+			for (curr_pos2; curr_pos2 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2][curr_pos2] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2][curr_pos2 - 1]; curr_pos2--);
+			if (curr_pos2 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2].size() - curr_pos2 == likely_amount_of_true_second) likely_move_of_players[1] = 0;
 			else likely_move_of_players[1] = 1;
 		}
 	}
 	else {
-		int likely_amount_of_false_second = get_likely_outcome_false(sequences_of_players, (position_of_smart_player + 2) % 3, arguments_of_the_game);
+		int likely_amount_of_false_second = get_likely_outcome_false(sequences_of_players, (position_of_smart_player + 2) % 2, arguments_of_the_game);
 
 		if (likely_amount_of_false_second < 0) {
 			likely_move_of_players[1] = 0;
 		}
 		else {
-			int curr_pos2 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3].size() - 1;
-			for (curr_pos2; arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3][curr_pos2] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3][curr_pos2 - 1]; curr_pos2--);
-			if (arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 3].size() - curr_pos2 == likely_amount_of_false_second) likely_move_of_players[1] = 1;
+			int curr_pos2 = arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2].size() - 1;
+			for (curr_pos2; curr_pos2 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2][curr_pos2] == arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2][curr_pos2 - 1]; curr_pos2--);
+			if (curr_pos2 && arguments_of_the_game.answers_sheet[(position_of_smart_player + 2) % 2].size() - curr_pos2 == likely_amount_of_false_second) likely_move_of_players[1] = 1;
 			else likely_move_of_players[1] = 0;
 		}
 	}
@@ -167,7 +175,7 @@ void player::player_calculate_next_move_smart(player* player_smart, arguments ar
 	int*** sequences_of_players = new int** [2];
 	sequences_of_players[0] = new int* [2];
 	sequences_of_players[1] = new int* [2];
-	sequences_of_players[0][0] = new int[arguments_of_the_game.answers_sheet[0].size()+1]; //вот тут fatal flaw, потому что если игра будет больше 300 ходов
+	sequences_of_players[0][0] = new int[arguments_of_the_game.answers_sheet[0].size()+1];
 	memset(sequences_of_players[0][0], 0, sizeof(int) * (arguments_of_the_game.answers_sheet[0].size()+1));
 	sequences_of_players[0][1] = new int[arguments_of_the_game.answers_sheet[0].size()+1];
 	memset(sequences_of_players[0][1], 0, sizeof(int) * (arguments_of_the_game.answers_sheet[0].size()+1));
@@ -191,4 +199,57 @@ void player::player_calculate_next_move_smart(player* player_smart, arguments ar
 	delete[] likely_move_of_players;
 };
 
-void player::player_calculate_next_move_side(player* player_side, arguments arguments_of_the_game) {};
+void player::player_calculate_next_move_marat(player* player_marat, arguments arguments_of_the_game) {
+	if (arguments_of_the_game.answers_sheet[0].size() == 0) {
+		srand((int)time(NULL));
+		(*player_marat).next_move = rand() % 2;
+		return;
+	}
+	int position_of_smart_player = 0;
+	while (true) {
+		if (arguments_of_the_game.players[position_of_smart_player] == "marat") break;
+		position_of_smart_player++;
+	}
+	int players_type[] = { 30,30,30 };
+	int player1_pos = (position_of_smart_player + 1) % 3;
+	int player2_pos = (position_of_smart_player + 2) % 3;
+	for (int i = 0; i < arguments_of_the_game.answers_sheet[0].size(); i++) {
+		if ((players_type[player1_pos] % 2 == 0) && (arguments_of_the_game.answers_sheet[player1_pos][i] != '1')) {
+			players_type[(position_of_smart_player + 1) % 3] /= 2;
+		}
+		if ((players_type[player2_pos] % 2 == 0) && (arguments_of_the_game.answers_sheet[player2_pos][i] != '1')) {
+			players_type[(position_of_smart_player + 2) % 3] /= 2;
+		}
+		if ((players_type[player1_pos] % 3 == 0) && (arguments_of_the_game.answers_sheet[player1_pos][i] != '0')) {
+			players_type[(position_of_smart_player + 1) % 3] /= 3;
+		}
+		if ((players_type[player2_pos] % 3 == 0) && (arguments_of_the_game.answers_sheet[player2_pos][i] != '0')) {
+			players_type[(position_of_smart_player + 2) % 3] /= 3;
+		}
+		if ((arguments_of_the_game.answers_sheet[0].size() == 1) || ((players_type[player1_pos] % 5 == 0) && (i>0) && (arguments_of_the_game.answers_sheet[player1_pos][i] == arguments_of_the_game.answers_sheet[player1_pos][i-1]))) {
+			players_type[(position_of_smart_player + 1) % 3] /= 5;
+		}
+		if (((arguments_of_the_game.answers_sheet[0].size() == 1)) || ((players_type[player2_pos] % 5 == 0) && (i>0) && (arguments_of_the_game.answers_sheet[player2_pos][i] == arguments_of_the_game.answers_sheet[player2_pos][i-1]))) {
+			players_type[(position_of_smart_player + 2) % 3] /= 5;
+		}
+	}
+
+	if (players_type[player1_pos] != 1) {
+		if ((players_type[player2_pos] != 1) || (players_type[player1_pos] == 5)) {
+			(*player_marat).next_move = 0;
+			return;
+		}
+		(*player_marat).next_move = arguments_of_the_game.answers_sheet[player2_pos][arguments_of_the_game.answers_sheet[0].size() - 1] - '0';
+		return;
+	}
+	if (players_type[player2_pos] != 1) {
+		if (players_type[player2_pos] == 5) {
+			(*player_marat).next_move = 0;
+			return;
+		}
+		(*player_marat).next_move = arguments_of_the_game.answers_sheet[player1_pos][arguments_of_the_game.answers_sheet[0].size() - 1] - '0';
+		return;
+	}
+	srand((int)time(NULL));
+	(*player_marat).next_move = rand() % 2;
+}
